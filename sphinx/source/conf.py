@@ -9,9 +9,9 @@
 
 import sys, os
 
-sys.path.insert(0, os.path.abspath("../../PROJECT"))
+sys.path.insert(0, os.path.abspath("../../overcast-procflow"))
 
-project = "PROJECT"
+project = "overcast-procflow"
 author = "Gwyn Uttmark"
 release = "0.0.3"
 

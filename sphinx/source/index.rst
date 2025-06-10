@@ -1,13 +1,13 @@
-Welcome to PROJECT's documentation!
+Welcome to overcast-procflow's documentation!
 ==================================
 
-.. automodule:: PROJECT
+.. automodule:: overcast-procflow
    :no-index:
 
 .. toctree::
    :maxdepth: 2
 
-   using-PROJECT
+   using-overcast-procflow
    api
    ./releases/index
 
@@ -18,4 +18,4 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-`GitHub Repository <https://github.com/biosafetylvl5/PROJECT>`_
+`GitHub Repository <https://github.com/biosafetylvl5/overcast-procflow>`_

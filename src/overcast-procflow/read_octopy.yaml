@@ -1,0 +1,53 @@
+apiVersion: NOT A REAL PROCFLOW
+kind: workflow
+metadata:
+  name: Basic OVERCAST CLAVR-x Reader
+
+inputs:
+  files:
+    time1: /mnt/geoips_testdata/test_data_clavrx/data/goes16_2024283_1501_1506/clavrx_OR_ABI-L1b-RadC-M6C01_G16_s20242831501174.level2.hdf
+    time2: /mnt/geoips_testdata/test_data_clavrx/data/goes16_2024283_1501_1506/clavrx_OR_ABI-L1b-RadC-M6C01_G16_s20242831506174.level2.hdf
+
+spec:
+  docstring: TODO
+  package: overcast_preprocessing
+  steps:
+    - reader:
+        name: clavrx_hdf4
+        arguments:
+          metadata_only: False
+          files:
+            - "${files.time1}"
+            - "${files.time2}"
+          vars:
+            - sensor_azimuth_angle
+            - sensor_zenith_angle
+            - surface_elevation
+            - cloud_phase
+            - cld_height_base
+            - cld_height_acha
+            - cld_cwp_dcomp
+            - freezing_altitude
+            - freezing_altitude_253
+            - freezing_altitude_268
+            - temp_10_4um_nom
+            - latitude
+            - longitude
+    - algorithm:
+        name: sanitize_clavrx
+        description: "Sanitize data"
+    - algorithm:
+        name: neo_octopy_clavrx
+        description: "Octopyy timeee"
+        output-hash:
+          match: any
+    - algorithm:
+        name: sanitize_clavrx
+        description: "Sanitize data"
+        output-hash:
+          match: any
+
+
+
+
+

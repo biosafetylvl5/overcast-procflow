@@ -1,0 +1,132 @@
+apiVersion: NOT A REAL PROCFLOW
+kind: workflow
+metadata:
+  name: Basic OVERCAST Preprocessing
+
+inputs:
+  comparison_files:
+    blending_GOES16_input: ./reference_data/blending_G16_input.nc
+    blending_GOES18_input: ./reference_data/blending_G18_input.nc
+    blending_cosine_of_sza: ./reference_data/blending_cosine_of_sza.nc
+    blending_unweighted: ./reference_data/blending_unweighted.nc
+    blending_hard_cutoffs: ./reference_data/blending_hard_cutoffs.nc
+    blending_manual: ./reference_data/blending_manual.nc
+    cropped_3d: ./reference_data/cropped_3d.nc
+    cropped_3d_cwc: ./reference_data/cropped_3d_cwc.nc
+    cropped_clipped: ./reference_data/cropped_clipped.nc
+    cropped_parallax_corrected: ./reference_data/cropped_parallax_corrected.nc
+    cropped_pc_with_cwc: ./reference_data/cropped_pc_with_cwc.nc
+    cropped_raw_input: ./reference_data/cropped_raw_input.nc
+    cropped_resampled: ./reference_data/cropped_resampled.nc
+    cropped_sanitized: ./reference_data/cropped_sanitized.nc
+
+
+spec:
+  docstring: Implementation of OVERCAST Preprocessing Integration Tests
+  steps:
+    - reader:
+        name: basic_netcdf4
+        description: Read cropped GOES 18 data from reference set
+        arguments:
+          file: "${comparison_files.blending_GOES18_input}"
+        output-hash:
+          tag: blending_GOES18_input
+
+    - workflow:
+        name: read_sanitize_parallax-correct_ingest-cwc_resample.basic
+        description: Read and process GOES-16
+        arguments:
+          filename: "${files.GOES-16}"
+          cwc_filename: "${cwc_files.GOES-16}"
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: crop_preprocessing_integration_data
+        tag: cropped_GOES-16
+        description: Crop GOES-16 Data
+        arguments: null
+        output-hash:
+          match: any
+
+    - workflow:
+        name: read_sanitize_parallax-correct_ingest-cwc_resample.basic
+        description: Read and process GOES-18
+        arguments:
+          filename: "${files.GOES-18}"
+          cwc_filename: "${cwc_files.GOES-18}"
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: crop_preprocessing_integration_data
+        tag: cropped_GOES-18
+        description: Crop GOES-18 Data
+        arguments: null
+        output-hash:
+          match: any
+
+    - merge:
+        name: concatenate
+        pass datatree: True
+        arguments:
+          order:
+            - cropped_GOES-16
+            - cropped_GOES-18
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Hard cutoff blending
+        arguments:
+          weight_function: hard_cutoff_weights
+        output-hash:
+          match: any
+
+    - output formatter:
+        name: nc_output_plugin
+        description: Write last output to file
+        arguments:
+          filename: blending_hard_cutoffs.nc
+          clobber: True
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Hard cutoff blending
+        arguments:
+          weight_function: manual_sensor_cutoff_weights
+          weight_function_kwargs:
+            platforms:
+              - GOES-16
+              - Meteosat-10
+              - Meteosat-9
+              - HIM9
+              - GOES-18
+            boundaries:
+              GOES-16_Meteosat-10: -37.6
+              Meteosat-10_Meteosat-9: 22.75
+              Meteosat-9_HIM9: 93.1
+              HIM9_GOES-18: -178.2
+              GOES-18_GOES-16: -106.2
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Cosine of SZA blending
+        arguments:
+          weight_function: cosine_of_sza_weights
+        output-hash:
+          match: any
+
+    - output formatter:
+        name: basic_netcdf
+        description: Write last output to file
+        arguments:
+          filename: blending_cosine_of_sza.nc
+          clobber: True
+        output-hash:
+          match: any

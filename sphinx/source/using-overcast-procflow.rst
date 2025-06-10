@@ -1,4 +1,4 @@
-Using PROJECT
+Using overcast-procflow
 ============
 
 Example usage

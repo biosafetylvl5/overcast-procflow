@@ -1,0 +1,57 @@
+FROM python:3.11-slim-bullseye AS base
+
+RUN apt-get update && apt-get -y upgrade \
+    && apt-get install -y wget git libopenblas-dev g++ make gfortran software-properties-common gnupg\
+    && add-apt-repository contrib \
+    && apt-key del 7fa2af80 \
+    && wget -qO - https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/3bf863cc.pub | apt-key add - \
+    && wget https://developer.download.nvidia.com/compute/cuda/repos/debian11/x86_64/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
+    && rm cuda-keyring_1.1-1_all.deb \
+    && apt-get --allow-releaseinfo-change update \
+    && apt-get install -y cuda-toolkit-12-4 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir -U pip
+
+FROM base AS doclinttest
+
+ARG GEOIPS_PACKAGES_DIR=/app/geoips_packages
+ARG USER=geoips_user
+ARG GEOIPS_OUTDIRS=/output
+ARG GEOIPS_REPO_URL=https://github.com/NRLMMD-GEOIPS/
+ARG GEOIPS_DEPENDENCIES_DIR=/mnt/dependencies
+ARG GEOIPS_TESTDATA_DIR=/mnt/geoips_testdata
+
+ENV GEOIPS_OUTDIRS=${GEOIPS_OUTDIRS} \
+    GEOIPS_REPO_URL=${GEOIPS_REPO_URL} \
+    GEOIPS_PACKAGES_DIR=${GEOIPS_PACKAGES_DIR} \
+    CARTOPY_DATA_DIR=${GEOIPS_PACKAGES_DIR} \
+    GEOIPS_DEPENDENCIES_DIR=${GEOIPS_DEPENDENCIES_DIR} \
+    GEOIPS_TESTDATA_DIR=${GEOIPS_TESTDATA_DIR} \
+    PATH=${PATH}:/home/${USER}/.local/bin:${GEOIPS_DEPENDENCIES_DIR}/bin
+
+WORKDIR $GEOIPS_PACKAGES_DIR
+
+RUN mkdir -p $GEOIPS_OUTDIRS $GEOIPS_DEPENDENCIES_DIR $GEOIPS_TESTDATA_DIR $GEOIPS_PACKAGES_DIR/geoips \
+    && chmod -R a+rw $GEOIPS_OUTDIRS $GEOIPS_DEPENDENCIES_DIR $GEOIPS_TESTDATA_DIR $GEOIPS_PACKAGES_DIR \
+    && useradd -l -m ${USER}
+
+USER ${USER}
+
+WORKDIR ${GEOIPS_PACKAGES_DIR}/geoips
+
+COPY --chown=${USER} ./geoips/environments/requirements.txt .
+
+RUN python3 -m pip install -r requirements.txt
+
+COPY --chown=${USER} ./geoips .
+
+RUN git config --global --add safe.directory '*' \
+    && pip install -e ".[test, doc, lint]" \
+    && create_plugin_registries
+
+USER root
+RUN chmod -R a+rw $GEOIPS_OUTDIRS $GEOIPS_DEPENDENCIES_DIR $GEOIPS_TESTDATA_DIR $GEOIPS_PACKAGES_DIR
+USER ${USER}

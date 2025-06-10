@@ -1,0 +1,68 @@
+apiVersion: NOT A REAL PROCFLOW
+kind: workflow
+metadata:
+  name: Basic OVERCAST Preprocessing
+
+inputs:
+  files:
+    GOES-18: clavrx_OR_ABI-L1b-RadF-M6C01_G18_s20242980350217.level2.hdf
+    Meteosat-9: clavrx_met9_2024_298_0345.level2.hdf
+    Meteosat-10: clavrx_met10_2024_298_0345.level2.hdf
+    Himawari-9: clavrx_H09_20241024_0350_B01_FLDK_DK_R10_S0110.DAT.level2.hdf
+    GOES-16-1: /mnt/geoips_testdata/test_data_clavrx/data/goes16_2024283_1501_1506/clavrx_OR_ABI-L1b-RadC-M6C01_G16_s20242831501174.level2.hdf
+    GOES-16-2: /mnt/geoips_testdata/test_data_clavrx/data/goes16_2024283_1501_1506/clavrx_OR_ABI-L1b-RadC-M6C01_G16_s20242831506174.level2.hdf
+
+spec:
+  docstring: TODO
+  package: overcast_preprocessing
+  steps:
+
+    - workflow:
+        name: read_sanitize_parallax-correct_resample.basic
+        tag: GOES-18
+        arguments:
+          description: Read and process GOES-18
+          filename: "${files.GOES-18}"
+
+    - workflow:
+        name: read_sanitize_parallax-correct_resample.basic
+        tag: Meteosat-9
+        arguments:
+          description: Read and process Meteosat-9
+          filename: "${files.Meteosat-9}"
+
+    - workflow:
+        name: read_sanitize_parallax-correct_resample.basic
+        tag: Meteosat-10
+        arguments:
+          description: Read and process Meteosat-10
+          filename: "${files.Meteosat-10}"
+
+    - workflow:
+        name: read_sanitize_parallax-correct_resample.basic
+        tag: Himawari-9
+        arguments:
+          description: Read and process Himawari-9
+          filename: "${files.Himawari-9}"
+
+    - workflow:
+        name: read_sanitize_octopy_sanitize_parallax-correct_resample.basic
+        tag: GOES-16
+        arguments:
+          description: Read and process GOES-16
+          file2: "${files.GOES-16-1}"
+          file1: "${files.GOES-16-2}"
+
+    - merge:
+        name: concatenate
+        arguments:
+          order:
+            - GOES-16
+            - Meteosat-10
+            - Meteosat-9
+            - Himawari-9
+            - GOES-18
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Constructing 2D cloud field

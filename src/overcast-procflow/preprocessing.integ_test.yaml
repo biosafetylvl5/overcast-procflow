@@ -1,0 +1,191 @@
+apiVersion: NOT A REAL PROCFLOW
+kind: workflow
+metadata:
+  name: Basic OVERCAST Preprocessing
+
+inputs:
+  files:
+    #GOES-16: /mnt/overcastnas1/GEO_clavrx/GOES16_ABI/RadF/output/2023345/clavrx_OR_ABI-L1b-RadF-M6C01_G16_s20233450600210.level2.hdf
+    GOES-16: clavrx_OR_ABI-L1b-RadF-M6C01_G16_s20233450600210.level2.hdf
+    #GOES-18: /mnt/overcastnas1/GEO_clavrx/GOES18_ABI/RadF/output/2023345/clavrx_OR_ABI-L1b-RadF-M6C01_G18_s20233450600224.level2.hdf
+    GOES-18: clavrx_OR_ABI-L1b-RadF-M6C01_G18_s20233450600224.level2.hdf
+  cwc_files:
+    #GOES-16: /mnt/overcastnas1/cwhite/cwc_golden_cases/2023345_0600/clavrx_OR_ABI-L1b-RadF-M6C01_G16_s20233450600210.CWC.h5
+    GOES-16: clavrx_OR_ABI-L1b-RadF-M6C01_G16_s20233450600210.CWC.h5
+    #GOES-18: /mnt/overcastnas1/cwhite/cwc_golden_cases/2023345_0600/clavrx_OR_ABI-L1b-RadF-M6C01_G18_s20233450600224.CWC.h5
+    GOES-18: clavrx_OR_ABI-L1b-RadF-M6C01_G18_s20233450600224.CWC.h5
+  comparison_files:
+    blending_GOES16_input: ./reference_data/blending_G16_input.nc
+    blending_GOES18_input: ./reference_data/blending_G18_input.nc
+    blending_cosine_of_sza: ./reference_data/blending_cosine_of_sza.nc
+    blending_unweighted: ./reference_data/blending_unweighted.nc
+    blending_hard_cutoffs: ./reference_data/blending_hard_cutoffs.nc
+    blending_manual: ./reference_data/blending_manual.nc
+    cropped_3d: ./reference_data/cropped_3d.nc
+    cropped_3d_cwc: ./reference_data/cropped_3d_cwc.nc
+    cropped_clipped: ./reference_data/cropped_clipped.nc
+    cropped_parallax_corrected: ./reference_data/cropped_parallax_corrected.nc
+    cropped_pc_with_cwc: ./reference_data/cropped_pc_with_cwc.nc
+    cropped_raw_input: ./reference_data/cropped_raw_input.nc
+    cropped_resampled: ./reference_data/cropped_resampled.nc
+    cropped_sanitized: ./reference_data/cropped_sanitized.nc
+
+
+spec:
+  docstring: Implementation of OVERCAST Preprocessing Integration Tests
+  steps:
+    - reader:
+        name: basic_netcdf4
+        description: Read cropped GOES 16 data from reference set
+        arguments:
+          file: "${comparison_files.blending_GOES16_input}"
+        output-hash:
+          tag: blending_GOES16_input
+
+    - workflow:
+        name: read_sanitize_parallax-correct_ingest-cwc_resample.basic
+        description: Read and process GOES-16
+        arguments:
+          filename: "${files.GOES-16}"
+          cwc_filename: "${cwc_files.GOES-16}"
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: crop_preprocessing_integration_data
+        tag: cropped_GOES-16
+        description: Crop GOES-16 Data
+        arguments: null
+        output-hash:
+          match: blending_GOES16_input
+
+    - reader:
+        name: basic_netcdf4
+        description: Read cropped GOES 18 data from reference set
+        arguments:
+          file: "${comparison_files.blending_GOES18_input}"
+        output-hash:
+          tag: blending_GOES18_input
+
+    - workflow:
+        name: read_sanitize_parallax-correct_ingest-cwc_resample.basic
+        description: Read and process GOES-18
+        arguments:
+          filename: "${files.GOES-18}"
+          cwc_filename: "${cwc_files.GOES-18}"
+        output-hash:
+          match: any
+
+    - algorithm:
+        name: crop_preprocessing_integration_data
+        tag: cropped_GOES-18
+        description: Crop GOES-18 Data
+        arguments: null
+        output-hash:
+          match: blending_GOES18_input
+
+    - merge:
+        name: concatenate
+        pass datatree: True
+        tag: stacked-data
+        arguments:
+          order:
+            - cropped_GOES-16
+            - cropped_GOES-18
+        output-hash:
+          match: any
+
+    # HARD CUTOFF
+    - reader:
+        name: basic_netcdf4
+        description: Read hard cutoff blended data from reference set
+        arguments:
+          file: "${comparison_files.blending_hard_cutoffs}"
+        output-hash:
+          tag: blending_hard_cutoffs
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Hard cutoff blending
+        input-xobj: stacked-data
+        arguments:
+          weight_function: hard_cutoff_weights
+        output-hash:
+          match: blending_hard_cutoffs
+
+    # UNWEIGHTED
+    - reader:
+        name: basic_netcdf4
+        description: Read unweighted blended data from reference set
+        arguments:
+          file: "${comparison_files.blending_hard_cutoffs}"
+        output-hash:
+          tag: blending_unweighted
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Unweighted blending
+        input-xobj: stacked-data
+        arguments:
+          weight_function: unweighted_averaging_weights
+          cloud_phase_weight_function: hard_cutoff_weights
+        output-hash:
+          match: blending_unweighted
+
+    - output formatter:
+        name: basic_netcdf
+        description: Write Unweighted Blending
+        arguments:
+          filename: "./output_data/blending_hard_cutoffs.nc"
+          clobber: True
+        output-hash:
+          match: any
+
+    # MANUAL CUTOFFS
+    - reader:
+        name: basic_netcdf4
+        description: Read manual cutoff blended data from reference set
+        arguments:
+          file: "${comparison_files.blending_manual}"
+        output-hash:
+          tag: blending_manual
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Manual cutoff blending
+        input-xobj: stacked-data
+        arguments:
+          weight_function: manual_sensor_cutoff_weights
+          weight_function_kwargs:
+            platforms:
+              - GOES-16
+              - Meteosat-10
+              - Meteosat-9
+              - HIM9
+              - GOES-18
+            boundaries:
+              GOES-16_Meteosat-10: -37.6
+              Meteosat-10_Meteosat-9: 22.75
+              Meteosat-9_HIM9: 93.1
+              HIM9_GOES-18: -178.2
+              GOES-18_GOES-16: -106.2
+        output-hash:
+          match: blending_manual
+
+    # Cosine of SZA
+    - reader:
+        name: basic_netcdf4
+        description: Read unweighted blended data from reference set
+        arguments:
+          file: "${comparison_files.blending_cosine_of_sza}"
+        output-hash:
+          tag: blending_cosine_of_sza
+
+    - algorithm:
+        name: blend_2d_clavrx
+        description: Cosine of SZA blending
+        input-xobj: stacked-data
+        arguments:
+          weight_function: cosine_of_sza_weights
+        output-hash:
+          match: blending_cosine_of_sza

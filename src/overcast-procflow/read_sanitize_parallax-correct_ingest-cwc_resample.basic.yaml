@@ -1,0 +1,43 @@
+apiVersion: overcastv1
+kind: workflow
+metadata:
+  name: Basic OVERCAST CLAVR-x Reader
+
+inputs:
+ filename: null
+
+spec:
+  docstring: TODO
+  package: overcast_preprocessing
+  steps:
+    - reader:
+        name: clavrx_hdf4
+        arguments:
+          metadata_only: False
+          file: "${filename}"
+          vars:
+            - sensor_azimuth_angle
+            - sensor_zenith_angle
+            - surface_elevation
+            - cloud_phase
+            - cld_height_base
+            - cld_height_acha
+            - cld_cwp_dcomp
+            - freezing_altitude
+            - freezing_altitude_253
+            - freezing_altitude_268
+            - latitude
+            - longitude
+    - algorithm:
+        name: sanitize_clavrx
+        description: "Sanitize data"
+    - algorithm:
+        name: parallax_correct_clavrx
+        description: "Apply Parallax Correction"
+    - interpolator:
+        name: overcast_preprocessing_resample
+        description: "Resample to OVERCAST grid"
+
+
+
+

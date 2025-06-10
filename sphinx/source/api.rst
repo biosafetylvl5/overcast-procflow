@@ -4,7 +4,7 @@ API
 Main Module
 ^^^^^^^^^^^
 
-.. automodule:: PROJECT.PROJECT
+.. automodule:: overcast-procflow.overcast-procflow
    :members:
    :undoc-members:
    :private-members:
