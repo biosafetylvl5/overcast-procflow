@@ -166,6 +166,8 @@ cython_debug/
 # Ignore testdata
 tests/data
 *.hdf
+*.nc
+*.h5
 
 # Ignore dependencies
 dependencies
